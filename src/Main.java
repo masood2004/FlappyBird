@@ -16,6 +16,7 @@ public class Main {
         FlappyBird flappyBird = new FlappyBird();
         frame.add(flappyBird);
         frame.pack(); // Added this so that Panel couldn't take the title bar size too.
+        flappyBird.requestFocus();
         frame.setVisible(true);
 
     }
