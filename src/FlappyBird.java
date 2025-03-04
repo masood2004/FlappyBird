@@ -1,7 +1,11 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Objects;
+import javax.imageio.ImageIO;
 import javax.swing.*;
 
 public class FlappyBird extends JPanel implements ActionListener, KeyListener {
@@ -9,10 +13,10 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
     int boardHeight = 640;
 
     // Images
-    Image backgroundImg;
-    Image birdImg;
-    Image topPipeImg;
-    Image bottomPipeImg;
+    private BufferedImage backgroundBuffered;
+    private BufferedImage birdBuffered;
+    private BufferedImage topPipeBuffered;
+    private BufferedImage bottomPipeBuffered;
 
     // Bird
     int BirdX = boardWidth / 8;
@@ -74,13 +78,18 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
         addKeyListener(this);
 
         // Load Images
-        backgroundImg = new ImageIcon(Objects.requireNonNull(getClass().getResource("images/flappybirdbg.png"))).getImage();
-        birdImg = new ImageIcon(Objects.requireNonNull(getClass().getResource("images/flappybird.png"))).getImage();
-        topPipeImg = new ImageIcon(Objects.requireNonNull(getClass().getResource("images/toppipe.png"))).getImage();
-        bottomPipeImg = new ImageIcon(Objects.requireNonNull(getClass().getResource("images/bottompipe.png"))).getImage();
+        try {
+            backgroundBuffered = ImageIO.read(Objects.requireNonNull(getClass().getResource("images/flappybirdbg.png")));
+            birdBuffered = scaleImage(ImageIO.read(Objects.requireNonNull(getClass().getResource("images/flappybird.png"))), BirdWidth, BirdHeight);
 
+            // Scale pipes once during initialization
+            topPipeBuffered = scaleImage(ImageIO.read(Objects.requireNonNull(getClass().getResource("images/toppipe.png"))), pipeWidth, pipeHeight);
+            bottomPipeBuffered = scaleImage(ImageIO.read(Objects.requireNonNull(getClass().getResource("images/bottompipe.png"))), pipeWidth, pipeHeight);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 //        Bird Object Initialization
-        bird = new Bird(birdImg);
+        bird = new Bird(birdBuffered);
         pipes = new ArrayList<>();
 
         // Timer for Placing Pipes
@@ -93,15 +102,24 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
         gameLoop.start();
     }
 
+    private BufferedImage scaleImage(BufferedImage original, int width, int height) {
+        BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = scaled.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2d.drawImage(original, 0, 0, width, height, null);
+        g2d.dispose();
+        return scaled;
+    }
+
     public void placePipes() {
         int randomPipeY = (int) (pipeY - (double) pipeHeight / 4 - Math.random() * ((double) pipeHeight / 2));
         int openingSpace = boardHeight / 4;
 
-        Pipe topPipe = new Pipe(topPipeImg);
+        Pipe topPipe = new Pipe(topPipeBuffered);
         topPipe.y = randomPipeY;
         pipes.add(topPipe);
 
-        Pipe bottomPipe = new Pipe(bottomPipeImg);
+        Pipe bottomPipe = new Pipe(bottomPipeBuffered);
         bottomPipe.y = topPipe.y + pipeHeight + openingSpace;
         pipes.add(bottomPipe);
     }
@@ -113,14 +131,17 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
 
     public void draw(Graphics g) {
         // Background
-        g.drawImage(backgroundImg, 0, 0, boardWidth, boardHeight, null);
+        g.drawImage(backgroundBuffered, 0, 0, boardWidth, boardHeight, null);
 
 //        Drawing Bird
         g.drawImage(bird.img, bird.x, bird.y, bird.width, bird.height, null);
 
-        // Drawing Pipes
+        // Draw visible pipes only
         for (Pipe pipe : pipes) {
-            g.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height, null);
+            if (pipe.x + pipe.width > 0) { // Only draw pipes that are visible
+                g.drawImage(pipe.img == topPipeBuffered  ? topPipeBuffered : bottomPipeBuffered,
+                        pipe.x, pipe.y, null);
+            }
         }
 
         // Writing Score
@@ -140,10 +161,19 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
         bird.y += velocityY;
         bird.y = Math.max(bird.y, 0);
 
-        // Pipes
-        for (Pipe pipe : pipes) {
+        // Pipe management using iterator for safe removal
+        Iterator<Pipe> iterator = pipes.iterator();
+        while (iterator.hasNext()) {
+            Pipe pipe = iterator.next();
             pipe.x += velocityX;
 
+            // Remove pipes that are completely off-screen
+            if (pipe.x + pipe.width < 0) {
+                iterator.remove();
+                continue;
+            }
+
+            // Keep existing collision and scoring logic
             if (!pipe.passed && bird.x > pipe.x + pipe.width) {
                 pipe.passed = true;
                 score += 0.5;
@@ -151,10 +181,11 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
 
             if (collision(bird, pipe)) {
                 gameOver = true;
+                break; // Early exit on collision
             }
         }
 
-        if(bird.y > boardHeight){
+        if (bird.y > boardHeight) {
             gameOver = true;
         }
     }
