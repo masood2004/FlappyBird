@@ -4,7 +4,7 @@ A Java-based clone of the popular Flappy Bird game, built using Swing for GUI. J
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?style=flat-square&logo=github)](https://github.com/masood2004/FlappyBird)
 
-![Gameplay Demo](https://github.com/masood2004/FlappyBird/raw/main/demo.gif) *(Replace with actual gameplay GIF)*
+![Gameplay Demo](https://raw.githubusercontent.com/masood2004/FlappyBird/refs/heads/master/src/images/demo.gif)
 
 ## Features
 - **Bird Mechanics**: Jump with the spacebar to navigate through pipes.
